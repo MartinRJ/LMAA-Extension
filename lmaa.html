@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LMAA - Browser Port</title>
+<style>
+  :root{
+    --ink:#16191f; --ink2:#232f3e; --accent:#7d5cd1; /* Lavender accent for LMAA */
+    --blue:#7d5cd1; --blue-d:#5a3f9e; --line:#d5dbdb; --bg:#f2f3f3;
+    --green:#037f51; --red:#d91515; --text:#16191f; --muted:#5f6b7a;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --ink:#0b1118; --ink2:#111827; --accent:#a385f0;
+      --blue:#a385f0; --blue-d:#c0a8ff; --line:#334155; --bg:#0f172a;
+      --green:#34d399; --red:#fb7185; --text:#e5e7eb; --muted:#94a3b8;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",-apple-system,sans-serif;min-height:100vh}
+  
+  header.topbar{background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px;height:54px;border-bottom:3px solid var(--accent);position:sticky;top:0;z-index:10}
+  .topbar .title{font-weight:600;font-size:15px}
+  .topbar .title small{display:block;font-weight:400;font-size:11px;color:#c7ccd1}
+  .topbar .meta{display:flex;gap:18px;align-items:center}
+  .topbar .reset{background:none;border:1px solid #5f6b7a;color:#cfd5db;border-radius:4px;padding:5px 10px;font-size:12px;cursor:pointer}
+  .topbar .reset:hover{border-color:#fff;color:#fff}
+  
+  main{max-width:900px;margin:20px auto;padding:0 14px}
+  .card{background:#fff;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:26px 30px 22px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  @media(prefers-color-scheme:dark){ .card{background:#111827;} }
+  
+  h1,h2,h3{margin-top:0}
+  input[type=text], input[type=password], textarea, select {
+    width:100%;padding:10px;margin:8px 0 16px;border:1px solid var(--line);border-radius:6px;background:transparent;color:inherit;font-family:inherit;
+  }
+  .btn{font:600 14px "Segoe UI",sans-serif;cursor:pointer;border-radius:6px;padding:11px 22px;border:1px solid transparent;display:inline-block;text-align:center;}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.primary{background:var(--blue);color:#fff}
+  .btn.primary:hover:not(:disabled){background:#5a3f9e}
+  .btn.ghost{background:transparent;color:var(--text);border-color:#8d99a6}
+  .btn.ghost:hover:not(:disabled){background:rgba(128,128,128,0.1)}
+  .btn.danger{background:transparent;color:var(--red);border-color:var(--red)}
+  .btn.danger:hover{background:var(--red);color:#fff}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;z-index:50;padding:40px 16px;overflow:auto}
+  .overlay.on{display:flex}
+  .helpcard{background:var(--bg);color:var(--text);max-width:780px;width:100%;border-radius:10px;border-top:4px solid var(--accent);padding:26px 30px 30px;position:relative}
+  @media(prefers-color-scheme:dark){.helpcard{background:#111827;}}
+  .hclose{position:absolute;top:16px;right:16px;border:1px solid var(--line);background:transparent;color:var(--text);border-radius:6px;padding:6px 12px;cursor:pointer}
+
+  .history-item{border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;background:var(--bg)}
+  @media(prefers-color-scheme:dark){.history-item{background:#0f172a;}}
+  .history-info{display:flex;flex-direction:column}
+  .history-title{font-weight:600;font-size:15px;margin-bottom:4px}
+  .history-meta{font-size:12px;color:var(--muted)}
+  .history-actions{display:flex;gap:8px}
+
+  .md-body p{margin-top:0;}
+  .md-body pre{background:#1e1e1e;color:#ccc;padding:10px;border-radius:6px;overflow:auto;white-space:pre;}
+  .md-body code{font-family:monospace;background:rgba(128,128,128,0.2);padding:2px 4px;border-radius:4px;}
+  .md-body pre code{background:transparent;padding:0;border-radius:0}
+  .md-body blockquote{margin:16px 0;padding:8px 16px;border-left:4px solid var(--accent);background:rgba(125,92,209,.08);color:var(--muted)}
+  .md-body blockquote p:last-child{margin-bottom:0}
+  .md-body a{color:var(--blue-d);text-decoration:underline;text-underline-offset:2px}
+  .md-body ul,.md-body ol{padding-left:26px}
+  .md-table-wrap{overflow-x:auto;margin:16px 0}
+  .md-body table{width:100%;border-collapse:collapse;min-width:420px}
+  .md-body th,.md-body td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  .md-body th{background:rgba(125,92,209,.12);font-weight:600}
+
+  .duplicate-link{display:block;margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:6px;color:var(--blue-d);text-decoration:none;background:rgba(125,92,209,.08)}
+  .duplicate-link:hover{border-color:var(--accent)}
+
+  .status-log{font-size:13px;color:var(--muted);white-space:pre-wrap;background:rgba(128,128,128,0.1);padding:10px;border-radius:6px;min-height:60px;margin-top:10px;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="title">LMAA Browser Port<small>Local Media Analysis Assistant</small></div>
+  <div class="meta">
+    <button class="reset" id="manageBtn">⚙ Verwaltung</button>
+  </div>
+</header>
+
+<main id="view-home">
+  <div class="card">
+    <h2>Neue Analyse</h2>
+    <label for="ytUrl">YouTube-Link (Direkteingabe):</label>
+    <input type="text" id="ytUrl" placeholder="https://youtube.com/watch?v=...">
+    <button class="btn primary" id="analyzeBtn">Analysieren</button>
+    <div id="statusLog" class="status-log" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2>Historie</h2>
+    <div id="historyList">Keine Briefings vorhanden.</div>
+  </div>
+</main>
+
+<main id="view-detail" style="display:none">
+  <div class="card">
+    <button class="btn ghost" id="backBtn" style="margin-bottom:16px">← Zurück</button>
+    <h2 id="detailTitle"></h2>
+    <div id="detailMeta" style="font-size:13px;color:var(--muted);margin-bottom:20px"></div>
+    <div id="detailContent" class="md-body" style="border-top:1px solid var(--line);padding-top:20px"></div>
+    <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn primary" id="copyBtn">Kopieren</button>
+      <button class="btn danger" id="deleteBtn" style="margin-left:auto">Löschen?</button>
+    </div>
+  </div>
+</main>
+
+<div id="manageOverlay" class="overlay">
+  <div class="helpcard">
+    <button class="hclose" id="manageClose">Schließen ✕</button>
+    <h2>⚙ Verwaltung</h2>
+    
+    <h3>API-Keys</h3>
+    <label>OpenAI API-Key</label>
+    <input type="password" id="cfgOpenai" placeholder="sk-...">
+    <label>OpenAI Modell</label>
+    <input type="text" id="cfgModel" value="gpt-5.6-sol" readonly>
+
+    <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+
+    <h3>Stile verwalten</h3>
+    <select id="cfgStyleSelect"></select>
+    <div style="display:flex; gap:10px; margin-bottom:16px;">
+      <button class="btn ghost" id="btnNewStyle">Neu</button>
+      <button class="btn danger" id="btnDeleteStyle" style="display:none">Stil Löschen</button>
+    </div>
+    
+    <label>Stil Name</label>
+    <input type="text" id="cfgStyleName">
+    <label>System-Prompt / Struktur (Markdown)</label>
+    <textarea id="cfgStylePrompt" rows="8"></textarea>
+
+    <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+
+    <h3>RapidAPI (Frei konfigurierbare Transkriptquelle)</h3>
+    <label>RapidAPI Modus</label>
+    <select id="cfgRapidapiMode">
+      <option value="off">Aus</option>
+      <option value="fallback">Nur als Fallback</option>
+      <option value="primary">RapidAPI bevorzugt</option>
+    </select>
+    <label>RapidAPI Key</label>
+    <input type="password" id="cfgRapidapiKey" placeholder="Dein RapidAPI-Key">
+    <label>Endpunkt URL (Platzhalter: {{canonical_url}}, {{video_id}}, {{language}})</label>
+    <input type="text" id="cfgRapidapiEndpoint">
+    <label>Methode</label>
+    <select id="cfgRapidapiMethod"><option value="GET">GET</option><option value="POST">POST</option></select>
+    <label>Header (Format: Key: Value, eine Zeile pro Header)</label>
+    <textarea id="cfgRapidapiHeaders" rows="3"></textarea>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:30px">
+      <button class="btn primary" id="cfgSave">Einstellungen Speichern</button>
+    </div>
+    
+    <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+    <button class="btn danger" id="wipeBtn">Alle lokalen Daten löschen</button>
+  </div>
+</div>
+
+<div id="duplicateOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="duplicateHeading">
+  <div class="helpcard" style="max-width:560px">
+    <h2 id="duplicateHeading">Briefing bereits vorhanden</h2>
+    <p>Für dieses Video existiert bereits ein Briefing.</p>
+    <a href="#" id="duplicateOpenLink" class="duplicate-link"></a>
+    <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap">
+      <button class="btn ghost" id="duplicateCancelBtn">Abbrechen</button>
+      <button class="btn primary" id="duplicateNewBtn">Neues Briefing erstellen</button>
+    </div>
+  </div>
+</div>
+
+<script src="lmaa-core.js"></script>
+<script src="lmaa.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Local Media Analysis Assistant (LMAA)",
+  "version": "1.0",
+  "description": "LMAA Single-Page-App als Chrome Extension für YouTube-Briefings.",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "lmaa_youtube_headers",
+        "enabled": true,
+        "path": "network-rules.json"
+      }
+    ]
+  },
+  "action": {
+    "default_title": "LMAA in neuem Tab öffnen"
+  },
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "https://api.openai.com/*",
+    "https://*.p.rapidapi.com/*"
+  ],
+  "permissions": [
+    "storage",
+    "declarativeNetRequestWithHostAccess"
+  ]
+}
