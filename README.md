@@ -17,7 +17,7 @@ Die Extension ist ein eigenständiger Browser-Port des Android-Projekts [MartinR
 - eigene Briefing-Stile anlegen, auswählen und löschen
 - Briefings lokal in `chrome.storage.local` historisieren
 - vorhandene Briefings zur gleichen Video-ID erkennen und wahlweise öffnen oder neu erzeugen
-- Markdown mit Überschriften, Hervorhebungen, Listen, Blockquotes, Tabellen, Inline-Code, Codeblöcken und sicheren HTTPS-Links rendern
+- Markdown mit Überschriften, Hervorhebungen, Listen, Blockquotes, Tabellen, horizontalen Linien, Inline-Code, Codeblöcken und sicheren HTTPS-Links rendern
 - Briefings einschließlich Titel, Kanal und kanonischer YouTube-URL kopieren
 
 Es gibt keinen LMAA-eigenen Server. Die Extension kommuniziert ausschließlich direkt mit YouTube, OpenAI und – falls aktiviert – einem RapidAPI-Host unter `*.p.rapidapi.com`.

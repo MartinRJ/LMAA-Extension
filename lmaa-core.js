@@ -259,9 +259,13 @@
     return cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell));
   }
 
+  function isThematicBreak(line) {
+    return /^\s{0,3}(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$/.test(String(line));
+  }
+
   function isMarkdownBlockStart(lines, index) {
     const line = lines[index] || "";
-    return /^```/.test(line) || /^#{1,6}\s+/.test(line) || /^>\s?/.test(line) ||
+    return /^```/.test(line) || /^#{1,6}\s+/.test(line) || isThematicBreak(line) || /^>\s?/.test(line) ||
       /^\s*[-*+]\s+/.test(line) || /^\s*\d+\.\s+/.test(line) ||
       (index + 1 < lines.length && line.includes("|") && isTableSeparator(lines[index + 1]));
   }
@@ -313,6 +317,12 @@
       if (heading) {
         const level = heading[1].length;
         html.push("<h" + level + ">" + renderInlineMarkdown(heading[2]) + "</h" + level + ">");
+        index += 1;
+        continue;
+      }
+
+      if (isThematicBreak(line)) {
+        html.push("<hr>");
         index += 1;
         continue;
       }

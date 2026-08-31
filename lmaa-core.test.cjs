@@ -99,7 +99,7 @@ test("OpenAI uses Responses, exact model, no tools and store false", () => {
   );
 });
 
-test("Markdown renders tables, blockquotes and safe timestamp links", () => {
+test("Markdown renders tables, blockquotes, horizontal rules and safe timestamp links", () => {
   const markdown = [
     "| Zeit | Thema |",
     "| --- | --- |",
@@ -107,12 +107,15 @@ test("Markdown renders tables, blockquotes and safe timestamp links", () => {
     "",
     "> Quellenkritischer Hinweis",
     "",
+    "---",
+    "",
     "<script>alert(1)</script>",
     "[unsicher](javascript:alert(1))"
   ].join("\n");
   const html = Core.renderMarkdown(markdown);
   assert.match(html, /<table>/);
   assert.match(html, /<blockquote>/);
+  assert.match(html, /<hr>/);
   assert.match(html, /href="https:\/\/www\.youtube\.com\/watch\?v=NmHhXoTckcM&amp;t=65s"/);
   assert.match(html, /<strong>Start<\/strong>/);
   assert.equal(html.includes("<script>"), false);
