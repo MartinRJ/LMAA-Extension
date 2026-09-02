@@ -223,6 +223,17 @@ function renderMarkdown(src) {
   return CORE.renderMarkdown(src);
 }
 
+function renderMath(container) {
+  container.querySelectorAll("[data-tex]").forEach(element => {
+    katex.render(element.dataset.tex, element, {
+      displayMode: element.classList.contains("math-display"),
+      throwOnError: false,
+      strict: "warn",
+      trust: false
+    });
+  });
+}
+
 /* ───── UI Logic ───── */
 
 function renderHistory() {
@@ -284,7 +295,7 @@ $("duplicateOpenLink").addEventListener("click", event => {
 $("duplicateNewBtn").addEventListener("click", () => closeDuplicateDialog("new"));
 $("duplicateCancelBtn").addEventListener("click", () => closeDuplicateDialog("cancel"));
 
-function openBriefing(id) {
+function openBriefing(id, options = {}) {
   const b = BRIEFINGS.find(x => x.id === id);
   if (!b) return;
   currentBriefing = b;
@@ -293,13 +304,27 @@ function openBriefing(id) {
   $("detailTitle").textContent = b.title;
   $("detailMeta").innerHTML = '<a href="https://www.youtube.com/watch?v=' + b.videoId + '" target="_blank" rel="noopener noreferrer">YouTube-Link</a> · Kanal: ' + escapeHtml(b.channel) + ' · Erstellt: ' + new Date(b.ts).toLocaleString() + ' · Stil: ' + escapeHtml(b.styleName || "Unbekannt");
   $("detailContent").innerHTML = renderMarkdown(b.markdown);
+  renderMath($("detailContent"));
+  if (options.pushHistory !== false) history.pushState({ view: "detail", id }, "");
 }
 
 $("backBtn").addEventListener("click", () => {
+  history.back();
+});
+
+function showHome() {
   $("view-detail").style.display = "none";
   $("view-home").style.display = "block";
   currentBriefing = null;
   renderHistory();
+}
+
+addEventListener("popstate", event => {
+  if (event.state?.view === "detail" && event.state.id) {
+    openBriefing(event.state.id, { pushHistory: false });
+  } else {
+    showHome();
+  }
 });
 
 const buildShareText = b => "Titel: " + b.title + "\nKanal: " + b.channel + "\nURL: " + CORE.canonicalUrl(b.videoId) + "\n\n" + b.markdown;
@@ -640,4 +665,22 @@ $("analyzeBtn").addEventListener("click", async () => {
   await loadStorage();
   await migrateOldData();
   renderHistory();
+  history.replaceState({ view: "home" }, "");
+
+  const requestedUrl = new URL(location.href).searchParams.get("youtubeUrl");
+  if (extractVideoId(requestedUrl || "")) {
+    $("ytUrl").value = requestedUrl;
+    return;
+  }
+
+  try {
+    const clipboardText = await navigator.clipboard.readText();
+    const clipboardVideoId = extractVideoId(clipboardText);
+    if (clipboardVideoId && confirm("Soll ich die YouTube-URL aus der Zwischenablage benutzen?")) {
+      $("ytUrl").value = CORE.canonicalUrl(clipboardVideoId);
+      $("analyzeBtn").click();
+    }
+  } catch (_) {
+    // An unavailable or denied clipboard must not prevent the extension from opening.
+  }
 })();

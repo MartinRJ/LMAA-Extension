@@ -122,6 +122,12 @@ test("Markdown renders tables, blockquotes, horizontal rules and safe timestamp 
   assert.equal(html.includes('href="javascript:'), false);
 });
 
+test("Markdown marks display and inline TeX for KaTeX rendering", () => {
+  const html = Core.renderMarkdown("\\[\ny = x + F(x)\n\\]\n\nInline: \\(a^2 + b^2 = c^2\\)");
+  assert.match(html, /class="math-display" data-tex="y = x \+ F\(x\)"/);
+  assert.match(html, /class="math-inline" data-tex="a\^2 \+ b\^2 = c\^2"/);
+});
+
 test("duplicate lookup returns the newest briefing for the video", () => {
   const newest = Core.findNewestBriefing([
     { id: "old", videoId: "NmHhXoTckcM", ts: 10 },
@@ -136,6 +142,8 @@ test("extension manifest is least-privilege and loads core before UI", () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.host_permissions.includes("<all_urls>"), false);
   assert.ok(manifest.permissions.includes("storage"));
+  assert.ok(manifest.permissions.includes("activeTab"));
+  assert.ok(manifest.permissions.includes("clipboardRead"));
   assert.ok(manifest.permissions.includes("declarativeNetRequestWithHostAccess"));
   const rules = JSON.parse(fs.readFileSync(__dirname + "/network-rules.json", "utf8"));
   assert.equal(rules.length, 1);

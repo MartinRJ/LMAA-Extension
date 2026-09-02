@@ -7,6 +7,7 @@ Die Extension ist ein eigenständiger Browser-Port des Android-Projekts [MartinR
 ## Funktionen
 
 - YouTube-Links als `watch`, `youtu.be`, `shorts`, `live` und `embed` erkennen und auf eine validierte elfstellige Video-ID normalisieren
+- URL der aktiven YouTube-Seite beim Klick auf das Extension-Symbol automatisch übernehmen; andernfalls nach Bestätigung eine YouTube-URL aus der Zwischenablage direkt analysieren
 - Titel und Kanal über YouTube oEmbed laden
 - Untertitel direkt über YouTubes Innertube-/Caption-Endpunkte abrufen
 - optionaler, frei konfigurierbarer RapidAPI-Provider mit den Modi:
@@ -17,7 +18,8 @@ Die Extension ist ein eigenständiger Browser-Port des Android-Projekts [MartinR
 - eigene Briefing-Stile anlegen, auswählen und löschen
 - Briefings lokal in `chrome.storage.local` historisieren
 - vorhandene Briefings zur gleichen Video-ID erkennen und wahlweise öffnen oder neu erzeugen
-- Markdown mit Überschriften, Hervorhebungen, Listen, Blockquotes, Tabellen, horizontalen Linien, Inline-Code, Codeblöcken und sicheren HTTPS-Links rendern
+- Markdown mit Überschriften, Hervorhebungen, Listen, Blockquotes, Tabellen, horizontalen Linien, Inline-Code, Codeblöcken, KaTeX-Formeln und sicheren HTTPS-Links rendern
+- mit Browser-Zurück (einschließlich Zurück-Maustaste) von einem Briefing zur Hauptansicht wechseln
 - Briefings einschließlich Titel, Kanal und kanonischer YouTube-URL kopieren
 
 Es gibt keinen LMAA-eigenen Server. Die Extension kommuniziert ausschließlich direkt mit YouTube, OpenAI und – falls aktiviert – einem RapidAPI-Host unter `*.p.rapidapi.com`.
@@ -68,6 +70,8 @@ Providerantworten werden nicht an ein providerspezifisches JSON-Schema gebunden.
 Die Erweiterung fordert nur die für den lokalen Workflow erforderlichen Berechtigungen an:
 
 - `storage`: Einstellungen, Stile und Historie lokal speichern
+- `activeTab`: beim bewussten Klick auf das Extension-Symbol die URL des aktiven YouTube-Tabs übernehmen
+- `clipboardRead`: beim Öffnen optional eine enthaltene YouTube-URL erkennen (die Verwendung erfolgt erst nach Bestätigung)
 - YouTube-Hostzugriff: Metadaten, Playerdaten und Captions abrufen
 - `api.openai.com`: Briefings erzeugen
 - `*.p.rapidapi.com`: optional konfigurierte RapidAPI-Provider aufrufen

@@ -24,6 +24,8 @@
     "https://*.p.rapidapi.com/*"
   ],
   "permissions": [
+    "activeTab",
+    "clipboardRead",
     "storage",
     "declarativeNetRequestWithHostAccess"
   ]

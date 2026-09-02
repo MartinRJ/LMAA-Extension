@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LMAA - Browser Port</title>
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
 <style>
   :root{
     --ink:#16191f; --ink2:#232f3e; --accent:#7d5cd1; /* Lavender accent for LMAA */
@@ -70,6 +71,8 @@
   .md-body table{width:100%;border-collapse:collapse;min-width:420px}
   .md-body th,.md-body td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
   .md-body th{background:rgba(125,92,209,.12);font-weight:600}
+  .math-display{overflow-x:auto;margin:16px 0;text-align:center}
+  .math-inline{display:inline-block;max-width:100%;vertical-align:middle}
 
   .duplicate-link{display:block;margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:6px;color:var(--blue-d);text-decoration:none;background:rgba(125,92,209,.08)}
   .duplicate-link:hover{border-color:var(--accent)}
@@ -178,6 +181,7 @@
   </div>
 </div>
 
+<script src="vendor/katex/katex.min.js"></script>
 <script src="lmaa-core.js"></script>
 <script src="lmaa.js"></script>
 </body>

@@ -232,6 +232,9 @@
     };
     let source = String(value || "").replace(/[\uE000\uE001]/g, "�");
     source = source.replace(/`([^`\n]+)`/g, (_, code) => token("<code>" + escapeHtml(code) + "</code>"));
+    source = source.replace(/\\\((.+?)\\\)/g, (_, formula) => token(
+      '<span class="math-inline" data-tex="' + escapeHtml(formula.trim()) + '"></span>'
+    ));
     source = source.replace(/\[([^\]\n]+)\]\((https:\/\/[^\s)]+)\)/g, (match, label, href) => {
       const safeHref = safeHttpsHref(href);
       if (!safeHref) return match;
@@ -265,7 +268,7 @@
 
   function isMarkdownBlockStart(lines, index) {
     const line = lines[index] || "";
-    return /^```/.test(line) || /^#{1,6}\s+/.test(line) || isThematicBreak(line) || /^>\s?/.test(line) ||
+    return /^```/.test(line) || /^\s*(?:\\\[|\$\$)\s*$/.test(line) || /^#{1,6}\s+/.test(line) || isThematicBreak(line) || /^>\s?/.test(line) ||
       /^\s*[-*+]\s+/.test(line) || /^\s*\d+\.\s+/.test(line) ||
       (index + 1 < lines.length && line.includes("|") && isTableSeparator(lines[index + 1]));
   }
@@ -278,6 +281,20 @@
       const line = lines[index];
       if (!line.trim()) {
         index += 1;
+        continue;
+      }
+
+      const mathStart = line.match(/^\s*(\\\[|\$\$)\s*$/);
+      if (mathStart) {
+        const closing = mathStart[1] === "\\[" ? /^\s*\\\]\s*$/ : /^\s*\$\$\s*$/;
+        const formula = [];
+        index += 1;
+        while (index < lines.length && !closing.test(lines[index])) {
+          formula.push(lines[index]);
+          index += 1;
+        }
+        if (index < lines.length) index += 1;
+        html.push('<div class="math-display" data-tex="' + escapeHtml(formula.join("\n").trim()) + '"></div>');
         continue;
       }
 
