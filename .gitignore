@@ -1,2 +1,4 @@
 _metadata/
 patch.patch
+work/
+node_modules/

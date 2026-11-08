@@ -4,6 +4,44 @@ Eine persönliche Chrome-Erweiterung, die aus YouTube-Videos kompakte Briefings 
 
 Die Extension ist ein eigenständiger Browser-Port des Android-Projekts [MartinRJ/LMAA](https://github.com/MartinRJ/LMAA). Das Hauptprojekt bleibt die Referenz für Produktidee, Sicherheitsgrenzen, Providerverhalten und Briefing-Stile; diese Extension benötigt die Android-App jedoch nicht.
 
+## Neu in 1.1.0
+
+- **Gezielte Frage** neben „Briefing erstellen“: vor dem Modellrequest pausieren,
+  Anweisung eingeben und erst mit Absenden erstellen. Hat die Modellphase bereits
+  begonnen, wird das reguläre Briefing zusätzlich gespeichert.
+- **Chat zum Briefing** mit lokal gespeichertem Verlauf pro Briefing, Retry nach
+  Fehler oder Neuladen und vollständiger gespeicherter Quelle. Keine Chat-
+  Zusammenfassungen: ausschließlich die ältesten Nachrichten werden bei Platzmangel
+  aus dem Request entfernt. Das konservative Budget beträgt 300.000 UTF-8-Bytes
+  einschließlich Framing-Reserve; Quelle + letzte Frage allein zu groß → klarer
+  Fehler statt stiller Kürzung. Alte Extension-Briefings ohne gespeichertes
+  Transkript verwenden das vorhandene Briefing als Quelle.
+- **Verwaltung → Verlauf exportieren/importieren** verwendet dasselbe JSON-v1-Format
+  wie Android. Datei per Quick Share/USB übertragen und auf dem Zielgerät importieren.
+  Briefings, vollständiger Quelltext, Chats und eigene Stile werden übernommen;
+  identische IDs werden zusammengeführt, Konflikte vor jedem Schreiben verworfen.
+  Kein Account, keine Keys im Export. Die Datei enthält persönliche Inhalte im
+  Klartext. Maximal 64 MiB; wiederholter Import erzeugt keine Duplikate.
+- Einfache Zeitmarken wie `[12:34]` oder `1:02:03` werden direkt zum jeweiligen Video
+  verlinkt. Code, Formeln und vorhandene Markdown-Links bleiben unverändert.
+- Aktiver Stil sichtbar, Standard geschützt, Ausgabesprache pro Stil, Snapshot beim
+  Start; Neuerstellung aus dem Detail und Teilen/Dateiexport ergänzt.
+- Lange Transkripte werden für die Briefing-Erstellung stilgerecht in Teile
+  verarbeitet. **Das ist ausschließlich der Briefing-Pfad; der Chat komprimiert
+  nichts.** Die Originalquelle bleibt gespeichert.
+- RapidAPI: POST-Body, Gesamt-Timeout, Antwortlimit, Erfolgsstatuscodes,
+  eingeschränkter cURL-Import ohne Shell-Ausführung, Defaults, sichtbarer Zähler
+  sowie einzelne Key-Löschaktionen. Separate Connect/Read/Write-Timeouts bleiben
+  eine OkHttp-/Android-Funktion; Browser-Fetch nutzt einen Gesamt-Timeout.
+- Unterbrochene Analysen können mit ihrem gespeicherten Stil explizit fortgesetzt
+  werden. Der Browser muss für eine laufende Anfrage geöffnet bleiben; nach
+  Tab-Abbruch gibt es keine Zusage einer automatischen Hintergrundausführung.
+
+Vorhandene Historie bleibt beim Update erhalten. Die neue Berechtigung
+`unlimitedStorage` verhindert, dass gespeicherte Quellen/Chats am bisherigen
+10-MiB-Storage-Kontingent scheitern; sie gewährt keine zusätzlichen Netzwerkziele.
+Lokaler freier Speicher und die Importgrenzen bleiben maßgeblich.
+
 ## Funktionen
 
 - YouTube-Links als `watch`, `youtu.be`, `shorts`, `live` und `embed` erkennen und auf eine validierte elfstellige Video-ID normalisieren
@@ -97,7 +135,7 @@ Eingehende URLs, Metadaten, Transkripte, RapidAPI-Antworten und Modell-Markdown 
 Die Kernlogik besitzt keine externen JavaScript-Abhängigkeiten. Mit installiertem Node.js können die synthetischen Contract-Tests ausgeführt werden:
 
 ```powershell
-node --test lmaa-core.test.cjs
+node --test *.test.cjs
 ```
 
 Die Tests decken unter anderem folgende Verträge ab:
@@ -127,3 +165,29 @@ Die Tests decken unter anderem folgende Verträge ab:
 ## Verhältnis zum Hauptprojekt
 
 Das Android-Hauptprojekt befindet sich unter [github.com/MartinRJ/LMAA](https://github.com/MartinRJ/LMAA). Es bietet unter anderem die native Android-App mit Room-Historie, WorkManager-Wiederaufnahme und Keystore-/Tink-geschütztem BYOK-Speicher. Die Browserextension ist ein separater Port für den persönlichen Desktop-Workflow und kein Ersatz für diese Android-spezifischen Sicherheits- und Persistenzmechanismen.
+
+
+### Browser-Smoke mit synthetischen Providern
+
+`tests/browser-smoke.cjs` lädt die echte entpackte Extension in ein isoliertes
+Chromium-Profil. Er prüft frühe/späte gezielte Fragen, Stil-Snapshots, Zeitmarken,
+Chat-Persistenz/Isolation/Retry, Export/Import ohne Duplikate, unterbrochene Jobs,
+langes Transkript und schmale Dark-Mode-Darstellung. Alle Provider werden gemockt;
+keine echten Schlüssel und keine kostenpflichtigen Requests.
+
+Getestet mit Playwright **1.57.0** (Apache-2.0, ausschließlich Testwerkzeug,
+keine Produkt-Dependency). Installation beispielsweise in `work/testing`:
+
+```sh
+npm install --prefix work/testing --no-save playwright@1.57.0
+node work/testing/node_modules/playwright/cli.js install chromium
+LMAA_PLAYWRIGHT="$PWD/work/testing/node_modules/playwright" node tests/browser-smoke.cjs
+```
+
+Optional: `LMAA_CHROMIUM` setzt den Chromium-Pfad, `LMAA_TEST_WORK` das Verzeichnis
+für temporäre Profile, synthetischen Export und Screenshots. Standardmäßig liegt
+alles unter dem ignorierten `work/`. Der Test entfernt sein Browserprofil danach.
+
+Nachweis vom 2026-11-08: **20 Node-Tests und Browser-Smoke bestanden**. Keine
+Live-Provider- oder Samsung-Geräteprüfung. Android-Migrationsformat und
+Plattformvergleich stehen im Hauptprojekt unter `docs/verlauf-und-chat.md`.

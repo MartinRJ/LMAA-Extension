@@ -95,6 +95,7 @@
       "{{language}}": language || "en",
       "{{rapidapi_key}}": settings.rapidapiKey
     };
+    if (url.pathname.includes("{{rapidapi_key}}") || decodeURIComponent(url.pathname).includes("{{rapidapi_key}}")) throw new Error("RAPIDAPI_KEY_PLACEHOLDER_LOCATION_INVALID");
     url.pathname = replaceTemplate(url.pathname, replacements);
     const query = Array.from(url.searchParams.entries());
     url.search = "";
@@ -126,7 +127,64 @@
     for (const header of parsedHeaders) {
       headers[header.name] = replaceTemplate(header.template, replacements);
     }
-    return { url: url.toString(), options: { method, headers } };
+    const bodyTemplate = String(settings.rapidapiBody || "");
+    if (bodyTemplate.includes("{{rapidapi_key}}") || bodyTemplate.length > 16000) throw new Error("RAPIDAPI_BODY_INVALID");
+    if (method === "GET" && bodyTemplate) throw new Error("RAPIDAPI_GET_BODY_NOT_ALLOWED");
+    const timeoutMs = Number(settings.rapidapiTimeoutMs ?? 30000);
+    const maxBytes = Number(settings.rapidapiMaxBytes ?? 2000000);
+    const successCodes = settings.rapidapiSuccessCodes || [200];
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 120000 || !Number.isInteger(maxBytes) || maxBytes < 1024 || maxBytes > 8000000) throw new Error("RAPIDAPI_LIMIT_INVALID");
+    if (!Array.isArray(successCodes) || !successCodes.length || successCodes.some(x => !Number.isInteger(x) || x < 200 || x > 299)) throw new Error("RAPIDAPI_STATUS_INVALID");
+    return { url: url.toString(), options: { method, headers, redirect: "error",
+      ...(bodyTemplate ? { body: replaceTemplate(bodyTemplate, replacements) } : {}) }, timeoutMs, maxBytes, successCodes };
+  }
+
+  function chunkSource(text, limit = 80000) {
+    if (!Number.isInteger(limit) || limit < 2) throw new Error("CHUNK_LIMIT_INVALID");
+    const chunks = [];
+    for (let start = 0; start < text.length;) {
+      let end = Math.min(start + limit, text.length);
+      if (end < text.length && /[\uD800-\uDBFF]/.test(text[end - 1]) && /[\uDC00-\uDFFF]/.test(text[end])) end--;
+      chunks.push(text.slice(start, end)); start = end;
+    }
+    return chunks;
+  }
+
+  // Parse a small declarative cURL subset; never execute shell text.
+  function parseRapidApiCurl(command) {
+    if (command.length > 32000 || /[`]|\$\(/.test(command)) throw new Error("CURL_UNSAFE");
+    const tokens = []; let value = "", quote = null, started = false;
+    for (let i = 0; i < command.length; i++) {
+      const c = command[i];
+      if (quote) { if (c === quote) quote = null; else value += c; started = true; continue; }
+      if (c === "'" || c === '"') { quote = c; started = true; }
+      else if (c === "\\" && /[\r\n]/.test(command[i + 1] || "")) { i++; if (command[i] === "\r") i++; }
+      else if (/[|;&<>]/.test(c)) throw new Error("CURL_UNSAFE");
+      else if (/\s/.test(c)) { if (started) { tokens.push(value); value = ""; started = false; } }
+      else { value += c; started = true; }
+    }
+    if (quote) throw new Error("CURL_QUOTES_INVALID");
+    if (started) tokens.push(value);
+    if (tokens.shift() !== "curl") throw new Error("CURL_INVALID");
+    let endpoint = "", method = "GET", body = "", key = ""; const headers = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+      if (["-X", "--request", "-H", "--header", "--url", "-d", "--data", "--data-raw"].includes(token)) {
+        const arg = tokens[++i]; if (!arg) throw new Error("CURL_ARGUMENT_MISSING");
+        if (["-X", "--request"].includes(token)) method = arg;
+        else if (["-H", "--header"].includes(token)) {
+          const parsed = parseHeaderTemplates(arg); if (parsed.length !== 1) throw new Error("CURL_HEADER_INVALID");
+          const h = parsed[0];
+          if (h.name.toLowerCase() === "x-rapidapi-key") { key = h.template; h.template = "{{rapidapi_key}}"; }
+          headers.push(h.name + ": " + h.template);
+        } else if (token === "--url") endpoint = arg;
+        else { body = arg; method = "POST"; }
+      } else if (token.startsWith("https://") && !endpoint) endpoint = token;
+      else throw new Error("CURL_OPTION_NOT_ALLOWED");
+    }
+    const settings = { rapidapiEndpoint: endpoint, rapidapiMethod: method, rapidapiBody: body, rapidapiHeaders: headers.join("\n") };
+    buildRapidApiRequest({ ...settings, rapidapiKey: key || "validation-only" }, "abcdefghijk", "de");
+    return { settings, key: key === "{{rapidapi_key}}" ? "" : key };
   }
 
   function migrateSettings(settings) {
@@ -224,7 +282,7 @@
     }
   }
 
-  function renderInlineMarkdown(value) {
+  function renderInlineMarkdown(value, videoId) {
     const tokens = [];
     const token = html => {
       const index = tokens.push(html) - 1;
@@ -243,6 +301,15 @@
         escapeHtml(label) + "</a>"
       );
     });
+    if (videoId) {
+      requireVideoId(videoId);
+      source = source.replace(/(^|[^\w:])(\[?(?:\d{1,3}:)?\d{1,2}:[0-5]\d\]?)(?![\w:])/g, (match, before, label) => {
+        const parts = label.replace(/[\[\]]/g, "").split(":").map(Number);
+        if (parts.length === 3 && parts[1] > 59) return match;
+        const seconds = parts.reduce((total, part) => total * 60 + part, 0);
+        return before + token('<a href="' + canonicalUrl(videoId) + '&amp;t=' + seconds + 's" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + '</a>');
+      });
+    }
     let html = escapeHtml(source);
     html = html.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
     html = html.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
@@ -273,7 +340,8 @@
       (index + 1 < lines.length && line.includes("|") && isTableSeparator(lines[index + 1]));
   }
 
-  function renderMarkdown(value) {
+  function renderMarkdown(value, videoId) {
+    const inline = value => renderInlineMarkdown(value, videoId);
     const lines = String(value || "").replace(/\r\n?/g, "\n").split("\n");
     const html = [];
     let index = 0;
@@ -321,10 +389,10 @@
           index += 1;
         }
         html.push("<div class=\"md-table-wrap\"><table><thead><tr>" +
-          headers.map(cell => "<th>" + renderInlineMarkdown(cell) + "</th>").join("") +
+          headers.map(cell => "<th>" + inline(cell) + "</th>").join("") +
           "</tr></thead><tbody>" +
           rows.map(row => "<tr>" + headers.map((_, cellIndex) =>
-            "<td>" + renderInlineMarkdown(row[cellIndex] || "") + "</td>"
+            "<td>" + inline(row[cellIndex] || "") + "</td>"
           ).join("") + "</tr>").join("") +
           "</tbody></table></div>");
         continue;
@@ -333,7 +401,7 @@
       const heading = line.match(/^(#{1,6})\s+(.+)$/);
       if (heading) {
         const level = heading[1].length;
-        html.push("<h" + level + ">" + renderInlineMarkdown(heading[2]) + "</h" + level + ">");
+        html.push("<h" + level + ">" + inline(heading[2]) + "</h" + level + ">");
         index += 1;
         continue;
       }
@@ -350,7 +418,7 @@
           quoted.push(lines[index].replace(/^>\s?/, ""));
           index += 1;
         }
-        html.push("<blockquote>" + renderMarkdown(quoted.join("\n")) + "</blockquote>");
+        html.push("<blockquote>" + renderMarkdown(quoted.join("\n"), videoId) + "</blockquote>");
         continue;
       }
 
@@ -363,7 +431,7 @@
           items.push(item[1]);
           index += 1;
         }
-        html.push("<ul>" + items.map(item => "<li>" + renderInlineMarkdown(item) + "</li>").join("") + "</ul>");
+        html.push("<ul>" + items.map(item => "<li>" + inline(item) + "</li>").join("") + "</ul>");
         continue;
       }
 
@@ -376,7 +444,7 @@
           items.push(item[1]);
           index += 1;
         }
-        html.push("<ol>" + items.map(item => "<li>" + renderInlineMarkdown(item) + "</li>").join("") + "</ol>");
+        html.push("<ol>" + items.map(item => "<li>" + inline(item) + "</li>").join("") + "</ol>");
         continue;
       }
 
@@ -386,7 +454,7 @@
         paragraph.push(lines[index]);
         index += 1;
       }
-      html.push("<p>" + paragraph.map(renderInlineMarkdown).join("<br>") + "</p>");
+      html.push("<p>" + paragraph.map(inline).join("<br>") + "</p>");
     }
     return html.join("\n");
   }
@@ -465,6 +533,8 @@
     BROKEN_RAPIDAPI_ENDPOINT,
     canonicalUrl,
     buildRapidApiRequest,
+    parseRapidApiCurl,
+    chunkSource,
     migrateSettings,
     extractInnertubeApiKey,
     buildInnertubeRequest,

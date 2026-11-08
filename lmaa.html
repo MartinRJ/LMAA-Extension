@@ -19,6 +19,11 @@
     }
   }
   *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  .history-item{gap:12px}
+  .history-info{min-width:0;overflow-wrap:anywhere}
+  .history-actions{flex-wrap:wrap}
+  @media(max-width:560px){.card{padding:18px}.history-item{align-items:flex-start;flex-direction:column}}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",-apple-system,sans-serif;min-height:100vh}
   
   header.topbar{background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px;height:54px;border-bottom:3px solid var(--accent);position:sticky;top:0;z-index:10}
@@ -65,6 +70,7 @@
   .md-body blockquote{margin:16px 0;padding:8px 16px;border-left:4px solid var(--accent);background:rgba(125,92,209,.08);color:var(--muted)}
   .md-body blockquote p:last-child{margin-bottom:0}
   .md-body hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+  #detailMeta a{color:var(--blue-d)}
   .md-body a{color:var(--blue-d);text-decoration:underline;text-underline-offset:2px}
   .md-body ul,.md-body ol{padding-left:26px}
   .md-table-wrap{overflow-x:auto;margin:16px 0}
@@ -94,7 +100,18 @@
     <h2>Neue Analyse</h2>
     <label for="ytUrl">YouTube-Link (Direkteingabe):</label>
     <input type="text" id="ytUrl" placeholder="https://youtube.com/watch?v=...">
-    <button class="btn primary" id="analyzeBtn">Analysieren</button>
+    <p id="activeStyleLabel"></p>
+    <button class="btn primary" id="analyzeBtn">Briefing erstellen</button>
+    <button class="btn ghost" id="focusedBtn">Gezielte Frage</button>
+    <button class="btn ghost" id="cancelAnalysisBtn" hidden>Abbrechen</button>
+    <div id="focusPanel" hidden>
+      <label for="focusInput">Was soll das Briefing behandeln?</label>
+      <textarea id="focusInput" maxlength="4000" rows="4" placeholder="Bitte briefe mich nur zu dem Teil über XYZ."></textarea>
+      <p>Die gezielte Erstellung startet nach dem Absenden. Ein bereits begonnenes Briefing bleibt zusätzlich in der Historie.</p>
+      <button class="btn primary" id="focusSubmit">Gezieltes Briefing erstellen</button>
+      <button class="btn ghost" id="focusCancel">Schließen / regulär fortsetzen</button>
+    </div>
+    <div id="recoveryActions"></div>
     <div id="statusLog" class="status-log" style="display:none"></div>
   </div>
 
@@ -112,8 +129,22 @@
     <div id="detailContent" class="md-body" style="border-top:1px solid var(--line);padding-top:20px"></div>
     <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn primary" id="copyBtn">Kopieren</button>
+      <button class="btn ghost" id="shareBtn">Teilen / Datei speichern</button>
+      <button class="btn ghost" id="regenerateBtn">Mit aktivem Stil neu erstellen</button>
       <button class="btn danger" id="deleteBtn" style="margin-left:auto">Löschen?</button>
     </div>
+  </div>
+  <div class="card">
+    <h2>Chat zum Briefing</h2>
+    <p>Der Verlauf bleibt gespeichert. Bei Platzmangel werden die ältesten Nachrichten nicht mitgesendet. Keine Zusammenfassung.</p>
+    <div id="chatMessages" class="md-body" aria-live="polite"></div>
+    <form id="chatForm">
+      <label for="chatInput">Deine Frage</label>
+      <textarea id="chatInput" rows="3" required></textarea>
+      <button class="btn primary" id="chatSend" type="submit">Senden</button>
+      <button class="btn ghost" id="chatRetry" type="button" hidden>Erneut versuchen</button>
+    </form>
+    <p id="chatStatus" role="status"></p>
   </div>
 </main>
 
@@ -125,6 +156,7 @@
     <h3>API-Keys</h3>
     <label>OpenAI API-Key</label>
     <input type="password" id="cfgOpenai" placeholder="sk-...">
+    <button class="btn ghost" id="deleteOpenaiKey">OpenAI-Key löschen</button>
     <label>OpenAI Modell</label>
     <input type="text" id="cfgModel" value="gpt-5.6-sol" readonly>
 
@@ -139,6 +171,8 @@
     
     <label>Stil Name</label>
     <input type="text" id="cfgStyleName">
+    <label for="cfgStyleLanguage">Ausgabesprache</label>
+    <input type="text" id="cfgStyleLanguage" maxlength="40" value="Deutsch">
     <label>System-Prompt / Struktur (Markdown)</label>
     <textarea id="cfgStylePrompt" rows="8"></textarea>
 
@@ -153,6 +187,8 @@
     </select>
     <label>RapidAPI Key</label>
     <input type="password" id="cfgRapidapiKey" placeholder="Dein RapidAPI-Key">
+    <button class="btn ghost" id="deleteRapidapiKey">RapidAPI-Key löschen</button>
+    <p id="rapidapiUsage"></p>
     <label>Endpunkt URL (Platzhalter: {{canonical_url}}, {{video_id}}, {{language}})</label>
     <input type="text" id="cfgRapidapiEndpoint">
     <label>Methode</label>
@@ -160,11 +196,29 @@
     <label>Header (Format: Key: Value, eine Zeile pro Header)</label>
     <textarea id="cfgRapidapiHeaders" rows="3"></textarea>
 
+    <label for="cfgRapidapiBody">POST-Body (optional, mit denselben Platzhaltern; ohne Key)</label>
+    <textarea id="cfgRapidapiBody" rows="3" maxlength="16000"></textarea>
+    <label for="cfgRapidapiTimeout">Gesamt-Timeout (Millisekunden, 1000–120000)</label>
+    <input type="text" id="cfgRapidapiTimeout" inputmode="numeric">
+    <label for="cfgRapidapiLimit">Maximale Antwortgröße (Bytes, 1024–8000000)</label>
+    <input type="text" id="cfgRapidapiLimit" inputmode="numeric">
+    <label for="cfgRapidapiCodes">Erfolgsstatuscodes (z. B. 200,201)</label>
+    <input type="text" id="cfgRapidapiCodes">
+    <label for="cfgCurl">RapidAPI-cURL importieren (GET/POST, Header, URL, Body)</label>
+    <textarea id="cfgCurl" rows="3"></textarea>
+    <button class="btn ghost" id="importCurl">cURL übernehmen</button>
+    <button class="btn ghost" id="rapidapiDefaults">RapidAPI-Defaults wiederherstellen</button>
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:30px">
       <button class="btn primary" id="cfgSave">Einstellungen Speichern</button>
     </div>
     
     <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+    <h3>Verlauf übertragen</h3>
+    <p>Briefings, Transkripte, Chats und eigene Stile zwischen App und Extension übertragen. Kein Account. Keine API-Keys im Export. Die Datei enthält deinen Verlauf im Klartext; bitte privat aufbewahren.</p>
+    <button class="btn ghost" id="exportHistory">Verlauf exportieren</button>
+    <label class="btn ghost" for="importHistory">Verlauf importieren</label>
+    <input type="file" id="importHistory" accept=".json,application/json" hidden>
+    <p id="transferStatus" role="status"></p>
     <button class="btn danger" id="wipeBtn">Alle lokalen Daten löschen</button>
   </div>
 </div>
@@ -183,6 +237,7 @@
 
 <script src="vendor/katex/katex.min.js"></script>
 <script src="lmaa-core.js"></script>
+<script src="lmaa-data.js"></script>
 <script src="lmaa.js"></script>
 </body>
 </html>
