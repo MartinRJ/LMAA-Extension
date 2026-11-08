@@ -21,6 +21,13 @@ test("chat citations use Unicode offsets, safe links and citation order", () => 
   assert.equal(Core.extractOpenAiOutputText(response),"😀 Fakt. Weiter.");
 });
 
+test("escaped pipes stay in one cell; common emphasis renders outside code", () => {
+  const html = Core.renderMarkdown("Intro\nA | B\n:- | -:\nX\\|Y | ~~alt~~\n\n__fett__ _kursiv_ \x60~~Code~~\x60");
+  assert.match(html, /<table>/);
+  assert.match(html, /<td[^>]*>X\|Y<\/td>/);
+  assert.match(html, /text-align:right"><del>alt<\/del>/);
+  assert.match(html, /<strong>fett<\/strong> <em>kursiv<\/em> <code>~~Code~~<\/code>/);
+});
 test("RapidAPI default renders the verified provider contract", () => {
   const request = Core.buildRapidApiRequest(rapidSettings, "NmHhXoTckcM", "en");
   const url = new URL(request.url);

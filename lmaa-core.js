@@ -313,6 +313,9 @@
     let html = escapeHtml(source);
     html = html.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
     html = html.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+    html = html.replace(/(?<!\w)__([^_\n]+)__(?!\w)/g, "<strong>$1</strong>")
+      .replace(/(?<!\w)_([^_\n]+)_(?!\w)/g, "<em>$1</em>")
+      .replace(/~~([^~\n]+)~~/g, "<del>$1</del>");
     html = html.replace(/\uE000LMAA(\d+)\uE001/g, (_, index) => tokens[Number(index)] || "");
     return html;
   }
@@ -320,13 +323,13 @@
   function splitTableRow(line) {
     let value = String(line).trim();
     if (value.startsWith("|")) value = value.slice(1);
-    if (value.endsWith("|")) value = value.slice(0, -1);
-    return value.split("|").map(cell => cell.trim());
+    if (value.endsWith("|") && !value.endsWith("\\|")) value = value.slice(0, -1);
+    return value.split(/(?<!\\)\|/).map(cell => cell.trim().replace(/\\\|/g, "|"));
   }
 
-  function isTableSeparator(line) {
+  function isTableSeparator(line, header) {
     const cells = splitTableRow(line);
-    return cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell));
+    return line.includes("|") && cells.length === splitTableRow(header).length && cells.every(cell => /^:?-+:?$/.test(cell));
   }
 
   function isThematicBreak(line) {
@@ -337,7 +340,7 @@
     const line = lines[index] || "";
     return /^```/.test(line) || /^\s*(?:\\\[|\$\$)\s*$/.test(line) || /^#{1,6}\s+/.test(line) || isThematicBreak(line) || /^>\s?/.test(line) ||
       /^\s*[-*+]\s+/.test(line) || /^\s*\d+\.\s+/.test(line) ||
-      (index + 1 < lines.length && line.includes("|") && isTableSeparator(lines[index + 1]));
+      (index + 1 < lines.length && line.includes("|") && isTableSeparator(lines[index + 1], line));
   }
 
   function renderMarkdown(value, videoId) {
@@ -380,8 +383,9 @@
         continue;
       }
 
-      if (index + 1 < lines.length && line.includes("|") && isTableSeparator(lines[index + 1])) {
+      if (index + 1 < lines.length && line.includes("|") && isTableSeparator(lines[index + 1], line)) {
         const headers = splitTableRow(line);
+        const alignment = splitTableRow(lines[index + 1]).map(cell => cell.endsWith(":") ? (cell.startsWith(":") ? "center" : "right") : "left");
         index += 2;
         const rows = [];
         while (index < lines.length && lines[index].trim() && lines[index].includes("|")) {
@@ -389,10 +393,10 @@
           index += 1;
         }
         html.push("<div class=\"md-table-wrap\"><table><thead><tr>" +
-          headers.map(cell => "<th>" + inline(cell) + "</th>").join("") +
+          headers.map((cell, col) => '<th style="text-align:' + alignment[col] + '">' + inline(cell) + "</th>").join("") +
           "</tr></thead><tbody>" +
           rows.map(row => "<tr>" + headers.map((_, cellIndex) =>
-            "<td>" + inline(row[cellIndex] || "") + "</td>"
+            '<td style="text-align:' + alignment[cellIndex] + '">' + inline(row[cellIndex] || "") + "</td>"
           ).join("") + "</tr>").join("") +
           "</tbody></table></div>");
         continue;
