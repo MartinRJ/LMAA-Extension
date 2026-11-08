@@ -4,6 +4,12 @@ Eine persönliche Chrome-Erweiterung, die aus YouTube-Videos kompakte Briefings 
 
 Die Extension ist ein eigenständiger Browser-Port des Android-Projekts [MartinRJ/LMAA](https://github.com/MartinRJ/LMAA). Das Hauptprojekt bleibt die Referenz für Produktidee, Sicherheitsgrenzen, Providerverhalten und Briefing-Stile; diese Extension benötigt die Android-App jedoch nicht.
 
+## Aktuell in 1.2.0
+
+- Unter **Historie → Titel oder Kanal suchen** filtert die Liste bei jedem Tastendruck. Ein Teil des Titels oder Kanalnamens genügt, unabhängig von Groß- und Kleinschreibung. Leere das Feld, um alle Briefings wieder anzuzeigen.
+- Der Briefing-Chat kann für aktuelle Fragen im Web recherchieren. Die Quellen erscheinen als anklickbare Links direkt in der Antwort und bleiben beim Verlaufstransfer erhalten. Das Briefing selbst wird aus dem Videomaterial erstellt.
+- Unter **Verwaltung → Verlauf importieren** siehst du, wie viele Briefings und Chatnachrichten neu hinzugekommen sind. Importierst du dieselbe Datei erneut, stehen beide Zähler auf null. Widersprechen sich bei gleicher Briefing-ID die Transkriptsprache oder der Anbieter, wird der gesamte Import abgebrochen.
+
 ## Neu in 1.1.0
 
 - **Gezielte Frage** neben „Briefing erstellen“: vor dem Modellrequest pausieren,
@@ -41,8 +47,6 @@ Vorhandene Historie bleibt beim Update erhalten. Die neue Berechtigung
 `unlimitedStorage` verhindert, dass gespeicherte Quellen/Chats am bisherigen
 10-MiB-Storage-Kontingent scheitern; sie gewährt keine zusätzlichen Netzwerkziele.
 Lokaler freier Speicher und die Importgrenzen bleiben maßgeblich.
-
-Der Briefing-Chat kann bei aktuellen Fragen automatisch im Web suchen. Quellenlinks bleiben im Chatverlauf und im JSON-Export anklickbar, wenn der Verlauf wieder geöffnet oder importiert wird. Die Briefing-Erstellung verwendet ausschließlich das Videomaterial.
 
 ## Funktionen
 
@@ -190,6 +194,4 @@ Optional: `LMAA_CHROMIUM` setzt den Chromium-Pfad, `LMAA_TEST_WORK` das Verzeich
 für temporäre Profile, synthetischen Export und Screenshots. Standardmäßig liegt
 alles unter dem ignorierten `work/`. Der Test entfernt sein Browserprofil danach.
 
-Nachweis vom 2026-11-08: **20 Node-Tests und Browser-Smoke bestanden**. Keine
-Live-Provider- oder Samsung-Geräteprüfung. Android-Migrationsformat und
-Plattformvergleich stehen im Hauptprojekt unter `docs/verlauf-und-chat.md`.
+Stand vom 8. November 2026 bestanden 22 Node-Tests und der Browsertest mit synthetischen Providerantworten. Der Browsertest prüft unter anderem die Live-Suche, das Leeren des Suchfelds und die Importmeldung bei einem Wiederimport. Der Transfer zwischen Extension und Android wurde im persönlichen Einsatz in beiden Richtungen bestätigt. Das gemeinsame Dateiformat ist im [Leitfaden für Verlauf und Chat](https://github.com/MartinRJ/LMAA/blob/main/docs/verlauf-und-chat.md) beschrieben.
