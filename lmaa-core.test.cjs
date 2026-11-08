@@ -12,6 +12,15 @@ const rapidSettings = {
     "X-RapidAPI-Key: {{rapidapi_key}}\nAccept: application/json"
 };
 
+test("chat citations use Unicode offsets, safe links and citation order", () => {
+  const response = {output:[{type:"message",content:[{type:"output_text",text:"😀 Fakt. Weiter.",annotations:[
+    {type:"url_citation",end_index:7,url:"https://example.org/a(b)"},
+    {type:"url_citation",url:"javascript:alert(1)"}
+  ]}]}]};
+  assert.equal(Core.extractOpenAiOutputText(response,true),"😀 Fakt. [Quelle: example.org](https://example.org/a%28b%29) Weiter.");
+  assert.equal(Core.extractOpenAiOutputText(response),"😀 Fakt. Weiter.");
+});
+
 test("RapidAPI default renders the verified provider contract", () => {
   const request = Core.buildRapidApiRequest(rapidSettings, "NmHhXoTckcM", "en");
   const url = new URL(request.url);

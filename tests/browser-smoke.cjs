@@ -37,7 +37,11 @@ const work = process.env.LMAA_TEST_WORK || path.join(root, 'work');
       const payload=route.request().postDataJSON();requests.push(payload);
       if(modelGate) await modelGate;
       if (Array.isArray(payload.input) && failChat) { failChat=false; return route.fulfill({status:429,json:{error:{code:'rate_limit_exceeded'}}}); }
-      await route.fulfill({json:{output:[{type:'message',content:[{type:'output_text',text: Array.isArray(payload.input)?'Eine synthetische Antwort.':'# Synthetisches Briefing\n[12:34] Ein Satz.'}]}]}});
+      const chat = Array.isArray(payload.input);
+      assert.deepEqual(payload.tools, chat ? [{type:'web_search'}] : []);
+      if (chat) assert.equal(payload.tool_choice, 'auto');
+      const annotations = chat ? [{type:'url_citation',end_index:26,url:'https://example.org/quelle'}] : [];
+      await route.fulfill({json:{output:[{type:'message',content:[{type:'output_text',annotations,text:chat?'Eine synthetische Antwort.':'# Synthetisches Briefing\n[12:34] Ein Satz.'}]}]}});
     });
     // Focus before any generation: no provider call until submit.
     await page.locator('#ytUrl').fill('https://youtu.be/abcdefghijk');
@@ -52,6 +56,7 @@ const work = process.env.LMAA_TEST_WORK || path.join(root, 'work');
     await page.locator('#chatInput').fill('Was bedeutet das?');
     await page.locator('#chatSend').click();
     await page.locator('#chatMessages').getByText('Eine synthetische Antwort.').waitFor();
+    assert.equal(await page.locator('#chatMessages a').getAttribute('href'),'https://example.org/quelle');
     assert.equal(requests[1].input.at(-1).content,'Was bedeutet das?');
     assert.equal(await page.locator('#chatRetry').isVisible(), false);
     assert.match(requests[1].input[0].content,/Nur synthetische Quelle/);
@@ -95,13 +100,16 @@ const work = process.env.LMAA_TEST_WORK || path.join(root, 'work');
     await download.saveAs(path.join(work, 'browser-archive.json'));
     const archive=JSON.parse(await fs.readFile(path.join(work, 'browser-archive.json'),'utf8'));
     assert.equal(archive.briefings.length,4);
-    assert.equal(archive.briefings.find(b=>b.id===firstId).messages.length,2);
+    const exportedMessages = archive.briefings.find(b=>b.id===firstId).messages;
+    assert.equal(exportedMessages.length,2);
+    assert.match(exportedMessages[1].content,/\[Quelle: example\.org\]\(https:\/\/example\.org\/quelle\)/);
     assert.ok(!JSON.stringify(archive).includes('synthetic-openai'));
     await page.locator('#importHistory').setInputFiles(path.join(work, 'browser-archive.json'));
     await page.getByText('Verlauf importiert und Chats zusammengeführt. Bestehende Briefings bleiben erhalten.').waitFor();
     assert.equal(await page.evaluate(()=>BRIEFINGS.length),4);
     await page.locator('#manageClose').click();
     await page.evaluate(id=>openBriefing(id),firstId);
+    assert.equal(await page.locator('#chatMessages a').getAttribute('href'),'https://example.org/quelle');
     await page.screenshot({path:path.join(work, 'extension-chat.png'),fullPage:true});
     // Failed chat requests remain retryable after reload, without duplicating the question.
     failChat=true;

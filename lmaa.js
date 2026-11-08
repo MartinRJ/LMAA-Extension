@@ -827,11 +827,14 @@ async function sendChat(briefingId) {
       const pending = b.messages.at(-1);
       const { input, omitted } = DATA.chatContext(b, b.messages);
       const request = CORE.buildOpenAiRequest(SET.openaiKey, "", input);
-      const payload = JSON.parse(request.options.body); payload.instructions = DATA.CHAT_INSTRUCTIONS;
+      const payload = JSON.parse(request.options.body);
+      payload.instructions = DATA.CHAT_INSTRUCTIONS;
+      payload.tools = [{ type: "web_search" }];
+      payload.tool_choice = "auto";
       request.options.body = JSON.stringify(payload);
       const response = await fetch(request.url, { ...request.options, signal: AbortSignal.timeout(240000) });
       if (!response.ok) throw new Error("OpenAI HTTP " + response.status);
-      const content = CORE.extractOpenAiOutputText(await response.json());
+      const content = CORE.extractOpenAiOutputText(await response.json(), true);
       if (!content) throw new Error("Leere Antwort");
       await mutateBriefings(list => {
         const target = list.find(x => x.id === briefingId);

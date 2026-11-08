@@ -35,7 +35,8 @@ test('archive rejects unsupported versions, duplicate IDs, invalid videos and ro
 test('chat retains full source and a contiguous newest suffix without modifying stored messages', () => {
   const b=fixture(); const old={id:'old',role:'user',content:'X'.repeat(1000),ts:1};
   const messages=[old,{id:'answer',role:'assistant',content:'Antwort',ts:2},...b.messages];
-  const context=data.chatContext(b,messages,1100);
+  const budget=Buffer.byteLength(data.CHAT_INSTRUCTIONS,'utf8')+600;
+  const context=data.chatContext(b,messages,budget);
   assert.equal(context.omitted,1); assert.equal(messages.length,3);
   assert.ok(context.input[0].content.includes('Ungekürzte Quelle 😃'));
   assert.equal(context.input.at(-1).content,'Warum?');

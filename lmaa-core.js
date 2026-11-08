@@ -514,13 +514,30 @@
     };
   }
 
-  function extractOpenAiOutputText(root) {
+  function citedText(part) {
+    const chars = Array.from(part.text);
+    const links = new Map();
+    for (const citation of Array.isArray(part.annotations) ? part.annotations : []) {
+      if (citation?.type !== "url_citation" || !/^https:\/\//i.test(citation.url)) continue;
+      let url;
+      try { url = new URL(citation.url); } catch { continue; }
+      if (url.username || url.password || url.port || /[\s\\]/.test(citation.url)) continue;
+      const end = citation.end_index;
+      const offset = Number.isInteger(end) && end >= 0 && end <= chars.length ? end : chars.length;
+      const href = url.href.replace(/\(/g, "%28").replace(/\)/g, "%29");
+      if (!/[()]/.test(citation.url) && chars.slice(0, offset).join("").endsWith("](" + citation.url + ")")) continue;
+      links.set(offset, (links.get(offset) || "") + " [Quelle: " + url.hostname + "](" + href + ")");
+    }
+    return chars.map((c, i) => (links.get(i) || "") + c).join("") + (links.get(chars.length) || "");
+  }
+
+  function extractOpenAiOutputText(root, webSearch = false) {
     const parts = [];
     for (const item of root && Array.isArray(root.output) ? root.output : []) {
       if (item.type !== "message" || !Array.isArray(item.content)) continue;
       for (const content of item.content) {
         if (content.type === "output_text" && typeof content.text === "string") {
-          parts.push(content.text);
+          parts.push(webSearch ? citedText(content) : content.text);
         }
       }
     }

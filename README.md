@@ -42,6 +42,8 @@ Vorhandene Historie bleibt beim Update erhalten. Die neue Berechtigung
 10-MiB-Storage-Kontingent scheitern; sie gewährt keine zusätzlichen Netzwerkziele.
 Lokaler freier Speicher und die Importgrenzen bleiben maßgeblich.
 
+Der Briefing-Chat kann bei aktuellen Fragen automatisch im Web suchen. Quellenlinks bleiben im Chatverlauf und im JSON-Export anklickbar, wenn der Verlauf wieder geöffnet oder importiert wird. Die Briefing-Erstellung verwendet ausschließlich das Videomaterial.
+
 ## Funktionen
 
 - YouTube-Links als `watch`, `youtu.be`, `shorts`, `live` und `embed` erkennen und auf eine validierte elfstellige Video-ID normalisieren
@@ -89,7 +91,7 @@ RapidAPI ist für neue Installationen standardmäßig ausgeschaltet. Der direkte
 
 - Modell: fest auf `gpt-5.6-sol`
 - API: OpenAI Responses API
-- Requests verwenden `store: false` und keine Modell-Tools
+- Requests verwenden `store: false`. Briefings laufen ohne Modell-Tools, Chats mit optionaler Websuche.
 - der aktive Stil bestimmt Inhalt, Sprache, Struktur und Ausgabeformat
 
 ### RapidAPI
@@ -128,7 +130,7 @@ Wichtig: Dieser Browser-Port speichert Einstellungen derzeit in `chrome.storage.
 - bei verdächtigem Verbrauch Keys sofort widerrufen und ersetzen
 - vor einer Verteilung an weitere Nutzer die Secret-Architektur neu bewerten
 
-Eingehende URLs, Metadaten, Transkripte, RapidAPI-Antworten und Modell-Markdown gelten als unvertrauenswürdig. Die Extension validiert Video-IDs und Netzwerkziele, führt kein geliefertes HTML aus, begrenzt gerenderte Links auf HTTPS und aktiviert keine Modell-Tools.
+Eingehende URLs, Metadaten, Transkripte, Suchergebnisse und Modell-Markdown gelten als unvertrauenswürdig. Die Extension validiert Video-IDs und Netzwerkziele, führt kein geliefertes HTML aus und begrenzt gerenderte Links auf HTTPS.
 
 ## Entwicklung und Tests
 
