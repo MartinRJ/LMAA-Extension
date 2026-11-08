@@ -62,6 +62,15 @@ const work = process.env.LMAA_TEST_WORK || path.join(root, 'work');
     assert.match(requests[1].input[0].content,/Nur synthetische Quelle/);
     const firstId=await page.evaluate(()=>currentBriefing.id);
     await page.reload();
+    const search=page.getByLabel('Titel oder Kanal suchen');
+    const entries=page.locator('#historyList .history-item');
+    const fullCount=await entries.count();
+    assert.ok(fullCount>0);
+    for (const term of ['SYNTHETISCHES','TESTKANAL']) {
+      await search.fill(term); assert.equal(await entries.count(),fullCount);
+    }
+    await search.fill('kein-passendes-briefing'); assert.equal(await entries.count(),0);
+    await search.fill(''); assert.equal(await entries.count(),fullCount);
     await page.locator('[data-action="open"]').first().click();
     await page.locator('#chatMessages').getByText('Eine synthetische Antwort.').waitFor();
     // Pause during transcript fetch; the regular model request must never start.
@@ -105,7 +114,7 @@ const work = process.env.LMAA_TEST_WORK || path.join(root, 'work');
     assert.match(exportedMessages[1].content,/\[Quelle: example\.org\]\(https:\/\/example\.org\/quelle\)/);
     assert.ok(!JSON.stringify(archive).includes('synthetic-openai'));
     await page.locator('#importHistory').setInputFiles(path.join(work, 'browser-archive.json'));
-    await page.getByText('Verlauf importiert und Chats zusammengeführt. Bestehende Briefings bleiben erhalten.').waitFor();
+    await page.getByText('Import abgeschlossen. Neue Briefings: 0 · Neue Chatnachrichten: 0').waitFor();
     assert.equal(await page.evaluate(()=>BRIEFINGS.length),4);
     await page.locator('#manageClose').click();
     await page.evaluate(id=>openBriefing(id),firstId);

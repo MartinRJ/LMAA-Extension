@@ -255,9 +255,11 @@ function renderMath(container) {
 
 function renderHistory() {
   const list = getBriefingsSorted();
+  const term = $("historySearch").value.trim().toLowerCase();
   const el = $("historyList");
   if (!list.length) { el.innerHTML = "Keine Briefings vorhanden."; return; }
-  el.innerHTML = list.map(b => '\
+  const visible = list.filter(b => [b.title, b.channel].some(value => (value || "").toLowerCase().includes(term)));
+  el.innerHTML = visible.map(b => '\
     <div class="history-item">\
       <div class="history-info">\
         <div class="history-title">' + escapeHtml(b.title) + '</div>\
@@ -270,6 +272,8 @@ function renderHistory() {
     </div>\
   ').join("");
 }
+
+$("historySearch").addEventListener("input", renderHistory);
 
 /* Event delegation for history buttons */
 $("historyList").addEventListener("click", async (e) => {
@@ -894,11 +898,12 @@ $("importHistory").addEventListener("change", async event => {
         while (settings.styles.some(s => s.name.toLowerCase() === name.toLowerCase())) name = style.name.slice(0, 60) + " (Import " + suffix++ + ")";
         settings.styles.push({ id: crypto.randomUUID(), name, prompt: style.instructions, outputLanguage: style.outputLanguage, isBuiltIn: false });
       }
-      await chrome.storage.local.set({ [STORAGE_BRIEFINGS]: merged, [STORAGE_SETTINGS]: settings });
-      BRIEFINGS = merged; SET = settings;
+      await chrome.storage.local.set({ [STORAGE_BRIEFINGS]: merged.briefings, [STORAGE_SETTINGS]: settings });
+      BRIEFINGS = merged.briefings; SET = settings;
+      $("transferStatus").textContent = `Import abgeschlossen. Neue Briefings: ${merged.addedBriefings} · Neue Chatnachrichten: ${merged.addedMessages}`;
     });
     renderHistory(); updateActiveStyle(); renderStyleSelect();
-    $("transferStatus").textContent = "Verlauf importiert und Chats zusammengeführt. Bestehende Briefings bleiben erhalten.";
+
   } catch (_) { $("transferStatus").textContent = "Import abgelehnt: ungültige, zu große oder widersprüchliche Datei. Bestehende Daten bleiben erhalten."; }
   finally { event.target.value = ""; }
 });

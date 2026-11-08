@@ -17,14 +17,25 @@ test('repeat import is idempotent and merges divergent chat histories', () => {
   incoming.messages.push({id:'message-2',role:'assistant',content:'Darum.',ts:3});
   const archive = {briefings:[incoming]};
   const merged = data.mergeArchive([b], archive);
-  assert.equal(merged.length,1); assert.equal(merged[0].messages.length,2);
-  assert.deepEqual(data.mergeArchive(merged,archive),merged);
+  assert.equal(merged.addedBriefings,0); assert.equal(merged.addedMessages,1);
+  assert.equal(merged.briefings.length,1); assert.equal(merged.briefings[0].messages.length,2);
+  assert.deepEqual(data.mergeArchive(merged.briefings,archive),{...merged,addedMessages:0});
+  assert.deepEqual(data.mergeArchive([],archive),{...merged,addedBriefings:1,addedMessages:2});
   assert.equal(b.messages.length,1);
 });
 test('conflicts reject atomically without overwriting local history', () => {
   const b=fixture(), incoming=structuredClone(b); incoming.markdown='Anderer Inhalt';
   assert.throws(()=>data.mergeArchive([b],{briefings:[incoming]}),/CONFLICT/);
   assert.equal(b.markdown,'[12:34] Inhalt');
+});
+test('language and provider conflicts abort even after a new entry', () => {
+  for (const [key,value] of [['language','en'],['provider','rapidapi']]) {
+    const local=[fixture()], conflict=fixture(), fresh=fixture();
+    conflict.transcript[key]=value;
+    fresh.id='fresh'; fresh.messages[0].id='fresh-msg';
+    assert.throws(()=>data.mergeArchive(local,{briefings:[fresh,conflict]}),/ARCHIVE_ID_CONFLICT/);
+    assert.deepEqual(local,[fixture()]);
+  }
 });
 test('archive rejects unsupported versions, duplicate IDs, invalid videos and roles', () => {
   const root=JSON.parse(data.exportArchive([fixture()],[]));

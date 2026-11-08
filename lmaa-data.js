@@ -84,6 +84,7 @@ Antworte in der Sprache der Frage. Fasse den Gesprächsverlauf nicht für späte
   }
   function mergeArchive(existing, incoming) {
     const result = structuredClone(existing);
+    let addedMessages = 0;
     const allMessages = new Map(result.flatMap(b => (b.messages || []).map(m => [m.id, b.id])));
     for (const b of incoming.briefings) {
       let target = result.find(x => x.id === b.id);
@@ -92,18 +93,20 @@ Antworte in der Sprache der Frage. Fasse den Gesprächsverlauf nicht für späte
         const old = portableBriefing(target);
         for (const key of ["videoId", "markdown", "ts", "model", "styleName", "styleInstructions", "styleOutputLanguage"])
           if (old[key] !== b[key]) throw new Error("ARCHIVE_ID_CONFLICT");
-        if (old.transcript.content !== b.transcript.content) throw new Error("ARCHIVE_ID_CONFLICT");
+        for (const key of ["content", "language", "provider"]) {
+          if (old.transcript[key] !== b.transcript[key]) throw new Error("ARCHIVE_ID_CONFLICT");
+        }
       }
       target.messages ||= [];
       for (const m of b.messages) {
         if (allMessages.has(m.id) && allMessages.get(m.id) !== b.id) throw new Error("ARCHIVE_MESSAGE_CONFLICT");
         const old = target.messages.find(x => x.id === m.id);
-        if (!old) { target.messages.push(m); allMessages.set(m.id, b.id); }
+        if (!old) { target.messages.push(m); allMessages.set(m.id, b.id); addedMessages++; }
         else if (["role", "content", "ts"].some(key => old[key] !== m[key])) throw new Error("ARCHIVE_MESSAGE_CONFLICT");
       }
       target.messages.sort((a,b) => a.ts - b.ts || a.id.localeCompare(b.id));
     }
-    return result;
+    return { briefings: result, addedBriefings: result.length - existing.length, addedMessages };
   }
   return Object.freeze({ ARCHIVE_LIMIT, CHAT_INSTRUCTIONS, chatContext, portableBriefing, validateArchive, exportArchive, mergeArchive });
 });
